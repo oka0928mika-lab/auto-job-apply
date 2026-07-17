@@ -1,0 +1,37 @@
+name: Auto job apply
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: auto-job-apply
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - run: npm start
+        env:
+          LIVE_APPLY: ${{ vars.LIVE_APPLY }}
+          MIN_CLIENT_RATING: "4.5"
+          MAX_LOW_RATINGS: "1"
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+          CROWDWORKS_STORAGE_STATE_B64: ${{ secrets.CROWDWORKS_STORAGE_STATE_B64 }}
+          COCONALA_STORAGE_STATE_B64: ${{ secrets.COCONALA_STORAGE_STATE_B64 }}
+          PROFILE_JSON_B64: ${{ secrets.PROFILE_JSON_B64 }}
