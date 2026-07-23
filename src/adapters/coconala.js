@@ -14,21 +14,24 @@ export class CoconalaAdapter extends Adapter {
   async readJob(url) {
     await this.page.goto(url, { waitUntil: "domcontentloaded" });
     const body = await this.page.locator("body").innerText();
-    const ratingMatch = body.match(/評価[^\d]*(\d(?:\.\d+)?)/);
-    const lowRatings = [...body.matchAll(/(?:★|評価)\s*([12](?:\.\d+)?)/g)].length;
+    const overview = this.section(body, "予算", ["募集内容", "募集内容の追記"]);
+    const details = this.section(body, "募集内容", ["募集内容の追記", "応募者一覧"]);
+    const client = this.section(body, "募集者情報", ["この募集内容に似ている仕事"]);
+    const clientLines = client.split("\n").map(line => line.trim()).filter(Boolean);
+    const clientName = clientLines.find(line =>
+      !/^\d(?:\.\d+)?\s*[（(]/.test(line) &&
+      !/^(発注実績|発注件数|発注率|取引完了率|認証状況|本人確認|機密保持契約)/.test(line) &&
+      !/^\d+%?$/.test(line)
+    ) ?? "";
+    const lowRatings = [...client.matchAll(/(?:★|評価)\s*([12](?:\.\d+)?)/g)].length;
     return {
       url,
       title: await this.firstText(["h1"]),
-      clientName: await this.firstText([
-        'a[href*="/users/"]',
-        '[class*="userName"]',
-        '[class*="username"]',
-        '[class*="UserName"]'
-      ]),
-      description: body,
-      budget: this.yen(body),
-      clientVerified: /本人確認済み|本人確認/.test(body),
-      clientRating: ratingMatch ? Number(ratingMatch[1]) : NaN,
+      clientName,
+      description: details || body,
+      budget: this.yen(overview || body.slice(0, 2500)),
+      clientVerified: /認証状況[\s\S]*本人確認/.test(client),
+      clientRating: this.rating(client),
       lowRatingCount: lowRatings,
       alreadyApplied: /提案済み|応募済み/.test(body)
     };
