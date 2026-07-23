@@ -25,9 +25,20 @@ export function classifyJob(text) {
   return categories.find(({ words }) => words.some(word => normalized.includes(word)))?.key ?? null;
 }
 
+function matchingCategories(text) {
+  const normalized = text.toLowerCase().replaceAll("ｌ", "l");
+  return categories
+    .filter(({ words }) => words.some(word => normalized.includes(word)))
+    .map(({ key }) => key);
+}
+
 export function evaluateJob(job, settings) {
   const text = `${job.title ?? ""}\n${job.description ?? ""}`.toLowerCase();
-  const category = classifyJob(text);
+  const matches = matchingCategories(text);
+  const affordable = matches
+    .filter(key => Number.isFinite(job.budget) && job.budget >= settings.budgets[key])
+    .sort((a, b) => settings.budgets[b] - settings.budgets[a]);
+  const category = affordable[0] ?? matches[0] ?? null;
   const reasons = [];
 
   if (!category) reasons.push("対象カテゴリ外");

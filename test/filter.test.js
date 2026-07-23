@@ -20,3 +20,16 @@ test("最低予算未満を除外する", () => {
   assert.equal(result.eligible, false);
   assert.match(result.reasons.join(), /予算/);
 });
+
+test("複合案件は予算内で対応できる制作物として判定する", () => {
+  const result = evaluateJob({
+    title: "Webサイト・SNS・チラシ・バナー制作",
+    description: "ブランド全体のデザインを継続依頼",
+    budget: 30000,
+    clientVerified: true,
+    clientRating: 4.9,
+    lowRatingCount: 0
+  }, config);
+  assert.equal(result.eligible, true);
+  assert.equal(result.category, "flyer_single");
+});
