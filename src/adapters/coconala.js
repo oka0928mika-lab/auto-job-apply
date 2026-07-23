@@ -19,6 +19,12 @@ export class CoconalaAdapter extends Adapter {
     return {
       url,
       title: await this.firstText(["h1"]),
+      clientName: await this.firstText([
+        'a[href*="/users/"]',
+        '[class*="userName"]',
+        '[class*="username"]',
+        '[class*="UserName"]'
+      ]),
       description: body,
       budget: this.yen(body),
       clientVerified: /本人確認済み|本人確認/.test(body),

@@ -19,6 +19,12 @@ export class CrowdWorksAdapter extends Adapter {
     return {
       url,
       title: await this.firstText(["h1", ".job_offer_title"]),
+      clientName: await this.firstText([
+        'a[href*="/public/employers/"]',
+        'a[href*="/user/"]',
+        '.client-name',
+        '[class*="client_name"]'
+      ]),
       description: body,
       budget: this.yen(body),
       clientVerified: /本人確認済み/.test(body),
