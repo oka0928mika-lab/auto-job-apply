@@ -10,8 +10,11 @@ export class CrowdWorksAdapter extends Adapter {
       await this.page.goto(`https://crowdworks.jp/public/jobs/category/${categoryId}?order=new`, {
         waitUntil: "domcontentloaded"
       });
-      const pageLinks = await this.page.locator('a[href*="/public/jobs/"]').evaluateAll(nodes =>
-        nodes.map(node => node.href).filter(href => /\/public\/jobs\/\d+(?:$|[?#])/.test(href))
+      await this.page.waitForTimeout(1500);
+      const pageLinks = await this.page.locator("a[href]").evaluateAll(nodes =>
+        nodes
+          .map(node => node.href)
+          .filter(href => /\/public\/jobs\/\d+(?:\/|$|[?#])/.test(href))
       );
       pageLinks.forEach(link => links.add(link.split(/[?#]/)[0]));
     }

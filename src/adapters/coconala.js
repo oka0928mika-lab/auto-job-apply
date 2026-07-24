@@ -3,6 +3,27 @@ import { Adapter } from "./base.js";
 export class CoconalaAdapter extends Adapter {
   constructor(page) { super(page, "ココナラ"); }
 
+  async clickAction(pattern, errorMessage) {
+    const candidates = this.page.locator(
+      'button, input[type="submit"], input[type="button"], a[role="button"], form a'
+    );
+    const count = await candidates.count();
+    for (let index = 0; index < count; index += 1) {
+      const candidate = candidates.nth(index);
+      if (!(await candidate.isVisible().catch(() => false))) continue;
+      const label = [
+        await candidate.innerText().catch(() => ""),
+        await candidate.getAttribute("value") ?? "",
+        await candidate.getAttribute("aria-label") ?? ""
+      ].join(" ").trim();
+      if (pattern.test(label)) {
+        await candidate.click();
+        return;
+      }
+    }
+    throw new Error(errorMessage);
+  }
+
   async listJobs() {
     await this.page.goto("https://coconala.com/requests/categories/18", { waitUntil: "domcontentloaded" });
     const links = await this.page.locator('a[href*="/requests/"]').evaluateAll(nodes =>
@@ -33,21 +54,27 @@ export class CoconalaAdapter extends Adapter {
       clientVerified: /認証状況[\s\S]*本人確認/.test(client),
       clientRating: this.rating(client),
       lowRatingCount: lowRatings,
-      alreadyApplied: /提案済み|応募済み/.test(body)
+      alreadyApplied: /提案済み|応募済み|募集終了|受付終了|応募期限を過ぎ/.test(body)
     };
   }
 
   async apply(job, proposal) {
     await this.page.goto(job.url, { waitUntil: "domcontentloaded" });
-    const button = this.page.getByRole("link", { name: /提案する|応募する/ }).or(this.page.getByRole("button", { name: /提案する|応募する/ })).first();
-    if (!(await button.count())) throw new Error("提案ボタンが見つかりません");
-    await button.click();
-    await this.page.locator("textarea").first().fill(proposal.message);
+    await this.clickAction(/提案する|応募する/, "提案ボタンが見つかりません");
+    const message = this.page.locator("textarea").first();
+    await message.waitFor({ state: "visible" });
+    await message.fill(proposal.message);
     const amount = this.page.locator('input[name*="amount"], input[name*="price"], input[inputmode="numeric"]').first();
     if (await amount.count()) await amount.fill(String(proposal.price));
-    await this.page.getByRole("button", { name: /確認|次へ|提案する/ }).first().click();
-    const finalButton = this.page.getByRole("button", { name: /提案する|送信する|確定/ }).first();
-    if (await finalButton.count()) await finalButton.click();
+    await this.clickAction(
+      /確認(?:画面)?(?:へ|に)?(?:進む)?|次へ|内容を確認|提案内容を確認/,
+      "応募内容の確認ボタンが見つかりません"
+    );
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
+    await this.clickAction(
+      /提案する|応募する|送信する|確定する/,
+      "最終送信ボタンが見つかりません"
+    );
   }
 
   async unreadReplies() {
